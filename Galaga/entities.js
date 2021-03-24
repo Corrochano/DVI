@@ -39,6 +39,11 @@ var OBJECT_PLAYER = 1,
 var PlayerShip = function() {
     this.setup('ship_player', { vx: 0, frame: 0, reloadTime: 0.25, maxVel: 200 });
 
+    this.x = Game.width/2 - this.w / 2;
+    //this.y = Game.height - 10 - this.h;
+    this.y = Game.height - Game.playerOffset - this.h;
+
+
     this.w = SpriteSheet.map['ship_player'].w;
     this.h = SpriteSheet.map['ship_player'].h;
     this.x = Game.width/2 - this.w / 2;
@@ -229,3 +234,164 @@ Level.prototype.step = function(dt) {
         if(this.callback) this.callback();
     }
 }
+
+
+///////////////////////////////
+//ANALYTICS
+///////////////////////////////
+
+var analytics = new function(){
+    var lastDate = Date.now();
+    var time = 0;
+    var frames = 0;
+    var fps = 0;
+    this.step = function(dt){
+        var now = Date.now();
+        //Ignoramos el dt que nos indica el método loop()
+        var dt = (now-lastDate);
+        lastDate = now;
+        time += dt;
+        ++frames;
+        fps = frames*1000 / time ;
+        if(time>5000){
+            time = 0;
+            frames = 0;
+        }
+    }
+    this.draw = function(ctx){
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "left";
+    ctx.font = "bold 16px arial";
+    ctx.fillText(Math.round(fps * 100) / 100,0,20);
+    }
+}
+
+///////////////////////////////
+//STARFIELD
+///////////////////////////////
+
+var Starfield = function(speed,opacity,numStars,clear) {
+    // Set up the offscreen canvas
+    var stars = document.createElement("canvas");
+    stars.width = Game.width;
+    stars.height = Game.height;
+    var starCtx = stars.getContext("2d");
+    var offset = 0;
+    // If the clear option is set,
+    // make the background black instead of transparent
+    if(clear) {
+        starCtx.fillStyle = "#000";
+        starCtx.fillRect(0,0,stars.width,stars.height);
+    }
+    // Now draw a bunch of random 2 pixel
+    // rectangles onto the offscreen canvas
+    starCtx.fillStyle = "#FFF";
+    starCtx.globalAlpha = opacity;
+    for(var i=0;i<numStars;i++) {
+        starCtx.fillRect(Math.floor(Math.random()*stars.width),
+        Math.floor(Math.random()*stars.height),
+        2,
+        2);
+    }
+    // This method is called every frame
+    // to draw the starfield onto the canvas
+    this.draw = function(ctx) {
+        var intOffset = Math.floor(offset);
+        var remaining = stars.height - intOffset;
+        // Draw the top half of the starfield
+        if(intOffset > 0) {
+            ctx.drawImage(stars,
+            0, remaining,
+            stars.width, intOffset,
+            0, 0,
+            stars.width, intOffset);
+        }
+        // Draw the bottom half of the starfield
+        if(remaining > 0) {
+            ctx.drawImage(stars,
+                0, 0,
+            stars.width, remaining,
+            0, intOffset,
+            stars.width, remaining);
+        }
+    };
+    // This method is called to update
+    // the starfield
+    this.step = function(dt) {
+        offset += dt * speed;
+        offset = offset % stars.height;
+    };
+};
+
+///////////////////////////////
+//TOUCHCONTROLS
+///////////////////////////////
+
+var TouchControls = function() {
+
+    var gutterWidth = 10;
+    var unitWidth = Game.width/5;
+    var blockWidth = unitWidth-gutterWidth;
+
+    this.drawSquare = function(ctx,x,y,txt,on) {
+        ctx.globalAlpha = on ? 0.9 : 0.6;
+        ctx.fillStyle = "#CCC";
+        ctx.fillRect(x,y,blockWidth,blockWidth);
+
+        ctx.fillStyle = "#FFF";
+        ctx.textAlign = "center";
+        ctx.globalAlpha = 1.0;
+        ctx.font = "bold " + (3*unitWidth/4) + "px arial";
+
+        ctx.fillText(txt,
+                    x+blockWidth/2,
+                    y+3*blockWidth/4+5);
+    };
+
+    this.draw = function(ctx) {
+        ctx.save();
+
+        var yLoc = Game.height - unitWidth;
+        this.drawSquare(ctx,gutterWidth,yLoc,"\u25C0", Game.keys['left']);
+        this.drawSquare(ctx,unitWidth + gutterWidth,yLoc,"\u25B6", Game.keys['right']);
+        this.drawSquare(ctx,4*unitWidth,yLoc,"A",Game.keys['fire']);
+        ctx.restore();
+    };
+
+    this.step = function(dt) { };
+
+    this.trackTouch = function(e) {
+        var touch, x;
+
+        e.preventDefault();
+        Game.keys['left'] = false;
+        Game.keys['right'] = false;
+
+        for(var i=0;i<e.targetTouches.length;i++) {
+            touch = e.targetTouches[i];
+            x = touch.pageX / Game.canvasMultiplier - Game.canvas.offsetLeft;
+            if(x < unitWidth) {
+                Game.keys['left'] = true;
+            }
+            if(x > unitWidth && x < 2*unitWidth) {
+                Game.keys['right'] = true;
+            }
+        }
+
+        if(e.type == 'touchstart' || e.type == 'touchend') {
+            for(i=0;i<e.changedTouches.length;i++) {
+                touch = e.changedTouches[i];
+                x = touch.pageX / Game.canvasMultiplier - Game.canvas.offsetLeft;
+                if(x > 4 * unitWidth) {
+                    Game.keys['fire'] = (e.type == 'touchstart');
+                }
+            }
+        }
+    };
+
+    Game.canvas.addEventListener('touchstart',this.trackTouch,true);
+    Game.canvas.addEventListener('touchmove',this.trackTouch,true);
+    Game.canvas.addEventListener('touchend',this.trackTouch,true);
+
+    Game.playerOffset = unitWidth + 20;
+};

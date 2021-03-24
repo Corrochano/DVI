@@ -25,17 +25,19 @@ var Game = new function() {
     // se obtiene el canvas, se cargan los recursos y se llama a callback
     this.initialize = function(canvasElementId, sprite_data, callback) {
 
-        this.canvas = document.getElementById(canvasElementId)
+        this.canvas = document.getElementById(canvasElementId);
+        this.playerOffset = 10;
+        this.canvasMultiplier= 1;
+        this.setupMobile();
         this.width = this.canvas.width;
         this.height= this.canvas.height;
-
         this.ctx = this.canvas.getContext && this.canvas.getContext('2d');
-        if(!this.ctx) {
-            return alert("Please upgrade your browser to play"); 
-        }
-
+        if(!this.ctx) { return alert("Please upgrade your browser to play"); }
         this.setupInput();
         this.loop();
+        if(this.mobile) {
+        this.setBoard(4,new TouchControls());
+        }
         SpriteSheet.load(sprite_data,callback);
     };
     
@@ -62,26 +64,70 @@ var Game = new function() {
     var boards = [];
 
     this.loop = function() {
-        var dt = 30 / 1000;
+        var fps = 60;
+        var dt = 1000/fps;
         // Cada pasada borramos el canvas
         Game.ctx.fillStyle = "#000";
         Game.ctx.fillRect(0,0,Game.width,Game.height);
         // y actualizamos y dibujamos todas las entidades
-        len = boards.length;
-        for(var i=0;i<len;i++) {
+        for(var i=0,len = boards.length;i<len;i++) {
             if(boards[i]) {
-                boards[i].step(dt);
+                boards[i].step(dt/1000);
                 boards[i].draw(Game.ctx);
             }
         }
-        setTimeout(Game.loop,26);
+        requestAnimationFrame(Game.loop);
     };
+        
     
     // Change an active game board
     this.setBoard = function(num,board) { 
         boards[num] = board; 
     };
 
+    this.setupMobile = function() {
+        //hasTouch indica si las funciones táctiles están disponibles
+        var container = document.getElementById("container"),
+        hasTouch = !!('ontouchstart' in window),
+        w = window.innerWidth, h = window.innerHeight;
+        //indicar al juego que estamos en mobile
+        if(hasTouch) { this.mobile = true; }
+        //Si la pantalla es demasiado grande o no hay táctil terminamos
+        if(screen.width >= 1280 || !hasTouch) {
+            console.log('Dispositivo no compatible');
+            return false;
+        }
+        //Avisamos de rotar la pantalla
+        if(w > h) {
+            alert("Por favor, rota el dispositivo y pulsa ACCEPTAR/OK");
+            w = window.innerWidth; h = window.innerHeight;
+        }
+        //Hacemos el contenedor más grande que la pantalla
+        container.style.height = h*2 + "px";
+        //Y hacemos scroll para intentar quitar la barra de dirección del navegador
+        window.scrollTo(0,1);
+        //Utilizamos CSS para ajustar el ancho y alto
+        h = window.innerHeight + 2;
+        container.style.height = h + "px";
+        container.style.width = w + "px";
+        container.style.padding = 0;
+        //Si la pantalla es muy grande (tablet) utilizamos un factor de multiplicación del canvas --> Es más eficiente que reescalar directamente con CSS
+        if(h >= this.canvas.height * 1.75 || w >= this.canvas.height * 1.75) {
+            this.canvasMultiplier = 2;
+            this.canvas.width = w / 2;
+            this.canvas.height = h / 2;
+            this.canvas.style.width = w + "px";
+            this.canvas.style.height = h + "px";
+        } else //Si la pantalla no es demasiado grande reescalamos directamente
+        {
+            this.canvas.width = w;
+            this.canvas.height = h;
+        }
+        //Colocamos el canvas de forma absoluta a la coordenada 0,0 de la ventana
+        this.canvas.style.position='absolute';
+        this.canvas.style.left="0px";
+        this.canvas.style.top="0px";
+    };
 }
 
 var TitleScreen = function TitleScreen(title,subtitle,callback) {

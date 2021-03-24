@@ -7,7 +7,11 @@ var playGame = function() {
     var board = new GameBoard();
     board.add(new PlayerShip());
     board.add(new Level(level1,winGame));
+    Game.setBoard(0,new Starfield(20,0.4,100,true))
+    Game.setBoard(1,new Starfield(50,0.6,100))
+    Game.setBoard(2,new Starfield(100,1.0,50));
     Game.setBoard(0,board); 
+    Game.setBoard(10,analytics);
 };
 
 var winGame = function() {
@@ -44,7 +48,7 @@ var sprites = {
     ship_green_enemy: {sx:158, sy:0, w:33, h:32, frames:1},
     player_missile: {sx:0, sy:42, w:7, h:20, frames:1},
     enemy_missile: {sx:9, sy:42, w:3, h:20, frames:1},
-    explosion: {sx:0, sy:70, w:64, h:46, frames:12},
+    explosion: {sx:0, sy:64, w:64, h:46, frames:12},
 };
 
 var enemies = {
